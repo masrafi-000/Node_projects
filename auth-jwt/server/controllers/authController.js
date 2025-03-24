@@ -1,45 +1,64 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import userModel from "../models/userModel.js";
+import transporter from "../config/nodemailer.js";
 
 // Register Controller
 export const register = async (req, res) => {
     const { name, email, password } = req.body;
 
+    // Validate input fields
     if (!name || !email || !password) {
-        return res.status(400).json({ success: false, message: "Missing required details" });
+        return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     try {
-        // Check if the user already exists
-        const existingUser = await userModel.findOne({ email });
+        const normalizedEmail = email.toLowerCase(); // Prevent case-sensitive duplicates
 
+        // Check if user already exists
+        const existingUser = await userModel.findOne({ email: normalizedEmail });
         if (existingUser) {
-            return res.status(400).json({ success: false, message: "User already exists" });
+            return res.status(400).json({ success: false, message: "Email already in use" });
         }
 
-        // Hash password before saving
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create a new user
-        const user = new userModel({ name, email, password: hashedPassword });
+        // Create new user
+        const user = new userModel({ name, email: normalizedEmail, password: hashedPassword });
         await user.save();
 
         // Generate JWT token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "default_secret", {
+            expiresIn: "7d",
+        });
 
         // Set cookie with token
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-        });
+        try {
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            });
+        } catch (cookieError) {
+            console.error("Error setting cookie:", cookieError);
+        }
+
+        // Send welcome email
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: email,
+            subject: "Welcome to Ray",
+            text: `Welcome to Ray! Your account has been successfully created with email: ${email}.`,
+        };
+        await transporter.sendMail(mailOptions);
 
         return res.status(201).json({ success: true, message: "User registered successfully" });
 
     } catch (error) {
-        return res.status(500).json({ success: false, message: "Server error" });
+        console.error("Registration Error:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 
