@@ -5,7 +5,6 @@ import express from "express";
 import connectDB from "./config/mongodb.js";
 import authRouter from "./routes/authRoute.js"
 import userRouter from "./routes/userRoute.js";
-
 const app = express();
 
 const port = process.env.PORT || 4000;
