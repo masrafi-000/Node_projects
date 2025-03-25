@@ -7,8 +7,12 @@ import { AppContent } from "../context/AppContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const context = useContext(AppContent);
+  if (!context) {
+    throw new Error("Login must be used within an AppContextProvider")
+  }
 
-  const { backendUrl, setIsLoggedin, getUserData } = useContext(AppContent);
+  const { backendUrl, setIsLoggedin, getUserData } = context;
 
   const [state, setState] = useState("Sign Up");
   const [name, setName] = useState("");

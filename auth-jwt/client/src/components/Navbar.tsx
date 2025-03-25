@@ -7,7 +7,14 @@ import { toast } from "react-toastify";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const { userData, backendUrl, setUserData, setIsLoggedin } = useContext(AppContent);
+  const context = useContext(AppContent);
+
+  // Ensure context is not null
+  if (!context) {
+    throw new Error("Navbar must be used within an AppContextProvider");
+  }
+
+  const { userData, backendUrl, setUserData, setIsLoggedin } = context;
 
   const sendVerificationOtp = async () => {
     try {
